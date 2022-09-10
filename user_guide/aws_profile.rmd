@@ -1,0 +1,37 @@
+---
+title: "Instrument Profile"
+author: "Didi Adisaputro"
+date: "Feb 7 2022"
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+## Package dependencies & credits
+
+This application depends on functions contained within the CCI.
+Special thanks to R packages leaflet, leaflet.extras, and Shiny.
+
+#### Package dependencies:
+
+        dplyr,
+        icons,
+        lubridate,
+        leaflet,
+        plotly,
+        purrr,
+        rmarkdown,
+        shiny,
+        shinydashboard,
+        shinydashboardPlus,
+        shinyLP,
+        shiny.pwa,
+        shinycssloaders
+        timetk,
+        weather,
+
+## Help & feedback
+
+For additional help or to submit feedback or bug reports, please contact:\
+Didi Adisaputro\
+[saputrozokovic\@gmail.com](mailto:sect.head.climatology@sinarmas-agri.com){.email}

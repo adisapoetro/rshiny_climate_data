@@ -1,0 +1,26 @@
+{
+    "id": "01C842D8",
+    "path": "C:/Users/DidiA/Google Drive/3. SMARTRI/R_Dashboard/Portofolio/donot upload/app_20220810.R",
+    "project_path": "donot upload/app_20220810.R",
+    "type": "r_source",
+    "hash": "1009712922",
+    "contents": "",
+    "dirty": false,
+    "created": 1662569395522.0,
+    "source_on_save": false,
+    "relative_order": 2,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "170,119",
+        "scrollLine": "123"
+    },
+    "folds": "0|10|27|0|\n28|33|36|0|\n214|44|779|0|\n215|10|272|76|\n273|33|314|2|\n315|88|400|1|\n401|99|438|2|\n439|96|464|4|\n465|45|496|2|\n497|26|529|4|\n500|66|521|4|\n530|25|573|4|\n533|65|565|4|\n574|24|602|4|\n603|32|630|4|\n631|35|718|32|\n719|23|739|4|\n740|29|769|2|\n770|35|778|0|\n771|37|775|2|\n781|12|783|0|\n",
+    "lastKnownWriteTime": 1661760356,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1662781727138,
+    "read_only": false,
+    "read_only_alternatives": []
+}

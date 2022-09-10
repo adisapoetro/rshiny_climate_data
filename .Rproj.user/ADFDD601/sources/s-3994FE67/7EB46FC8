@@ -1,0 +1,26 @@
+{
+    "id": "7EB46FC8",
+    "path": "C:/Users/DidiA/Google Drive/SMARTRI/R_Dashboard/CCI_Lite/app_220726.R",
+    "project_path": "app_220726.R",
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1658817206356.0,
+    "source_on_save": false,
+    "relative_order": 1,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "63,52",
+        "scrollLine": "0"
+    },
+    "folds": "2|10|19|0|\n20|5|24|0|\n25|18|30|150|\n31|34|63|52|\n64|38|179|0|\n180|9|617|20|\n181|44|615|2|\n183|27|213|2|\n214|8|271|76|\n272|24|317|2|\n318|17|344|4|\n345|24|378|2|\n379|21|412|4|\n382|66|404|4|\n413|20|450|4|\n416|65|441|4|\n451|19|470|4|\n471|15|586|32|\n587|18|614|2|\n",
+    "lastKnownWriteTime": 1658818137,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1658820032062,
+    "read_only": false,
+    "read_only_alternatives": []
+}

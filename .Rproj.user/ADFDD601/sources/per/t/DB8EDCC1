@@ -1,0 +1,27 @@
+{
+    "id": "DB8EDCC1",
+    "path": "C:/Users/DidiA/Google Drive/3. SMARTRI/R_Dashboard/Portofolio/app_nonsql_20220808.R",
+    "project_path": "app_nonsql_20220808.R",
+    "type": "r_source",
+    "hash": "2078728735",
+    "contents": "",
+    "dirty": false,
+    "created": 1662563883857.0,
+    "source_on_save": false,
+    "relative_order": 5,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "150,100",
+        "scrollLine": "138",
+        "docOutlineVisible": "0"
+    },
+    "folds": "333|99|370|2|\n371|96|396|4|\n397|45|428|2|\n429|26|461|4|\n432|66|453|4|\n462|25|501|4|\n465|65|492|4|\n502|24|526|0|\n527|32|555|4|\n556|35|644|32|\n645|23|662|4|\n663|35|665|0|\n667|12|668|20|\n",
+    "lastKnownWriteTime": 1662782196,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1662782196666,
+    "read_only": false,
+    "read_only_alternatives": []
+}

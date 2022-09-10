@@ -1,0 +1,16 @@
+---
+title: "soi"
+output: html_document
+date: '2022-06-29'
+---
+
+## The Southern Oscillation Index (SOI)
+
+The Southern Oscillation Index (SOI) is a measure of the intensity or strength of the Walker Circulation. It is one of the key atmospheric indices for gauging the strength of El Niño and La Niña events and their potential impacts on the Indonesian region.
+
+The SOI measures the difference in surface air pressure between Tahiti and Darwin. The index is best represented by monthly (or longer) averages as daily or weekly SOI values can fluctuate markedly due to short-lived, day-to-day weather patterns, particularly if a tropical cyclone is present.
+
+Sustained positive SOI values above about +8 indicate a La Niña event while sustained negative values below about –8 indicate an El Niño.
+
+
+

@@ -1,0 +1,56 @@
+library(shiny)
+library(shinydashboard)
+library(shinyjs)
+library(shinyWidgets)
+
+
+header <- dashboardHeader()
+sidebar <- dashboardSidebar()
+
+body <- dashboardBody(
+  useShinyjs(),
+  fluidRow(
+    div(id = "TimingBox",
+        tabBox(id = "Timing",
+               tabPanel("Tab 1", 
+                        plotOutput("plot1")
+                        
+               ),
+               tabPanel("Tab 2"),
+               title = p("Status",
+                         div(id = "mybutton", 
+                             # put the button in div so it can be hide/show with some shinyjs
+                             dropdownButton(
+                               "A title", 
+                               textInput("id1", "an input"),
+                               selectInput("id2", "another input", choices = letters[1:5]),
+                               circle = TRUE,
+                               size = 'xs',
+                               right = TRUE,
+                               icon = icon("gear"),
+                               width = '100px'
+                             ))), 
+               width = 12,
+               selected = "Tab 1"
+        )
+    )
+  )
+)
+
+ui <- dashboardPage(header, sidebar, body)
+
+server <- function(input, output) {
+  
+  set.seed(122)
+  histdata <- rnorm(500)
+  
+  output$plot1 <- renderPlot({
+    data <- histdata[seq_len(50)]
+    hist(data)
+  })
+  
+  # Display button to show the sidebar only when tab 1 is active
+
+}
+
+shinyApp(ui, server)

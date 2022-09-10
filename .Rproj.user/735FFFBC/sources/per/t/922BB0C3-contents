@@ -1,0 +1,96 @@
+
+library(shiny)
+library(shinydashboard)
+library(shiny.pwa)
+
+ui <- dashboardPage(skin = "red", dashboardHeader(title = "Pak Yendra Request"),
+                    dashboardSidebar(sidebarMenu(menuItem("Hourly", tabName = "hourly", icon = icon("chart-line")),
+                                                 menuItem("Daily", tabName = "daily", icon = icon("chart-line")),
+                                                 menuItem("Daily Imputed", tabName = "daily_imputed", icon = icon("chart-line")))),
+                    dashboardBody(tabItems(tabItem(tabName = "hourly", 
+                                                   fluidRow(column(12,box(title = "Controls",
+                                                                selectInput(inputId = "id",
+                                                                            label = "Select id",
+                                                                            choices = unique(df_clean_hourly$id)))),
+                                                            column(12, box(plotlyOutput("plottrh", height = 250))))),
+                                           tabItem(tabName = "daily", 
+                                                   fluidRow(column(12, box(title = "tes",
+                                                                selectInput(inputId = "id_daily",
+                                                                            label = "Select id",
+                                                                            choices = unique(df_clean_daily$id)))),
+                                                            column(12, box(plotlyOutput("plottrh_daily", height = 800))))),
+                                           tabItem(tabName = "daily_imputed", 
+                                                   fluidRow(column(12, box(title = "tes",
+                                                                           selectInput(inputId = "id_imputed",
+                                                                                       label = "Select id",
+                                                                                       choices = unique(df_imputed$id)))),
+                                                            column(12, box(plotlyOutput("plot_daily_imputed", height = 800))))))
+                    ))
+
+server <- function(input, output) {
+  set.seed(122)
+  histdata <- rnorm(500)
+  
+  output$plot1 <- renderPlot({
+    data <- histdata[seq_len(input$slider)]
+    hist(data)
+  })
+  
+  output$plottrh <- renderPlotly({
+    
+    plot <-  df_clean_hourly %>%
+      filter(id==input$id )%>%
+      select(-contains("id")) %>%
+      reshape2::melt(id.var = 'date_time')  %>%
+      ggplot(aes(x = date_time, y = value, group = variable)) +
+      geom_line(aes(col=variable)) +
+      theme_bw() +
+      facet_wrap(~ variable, ncol = 2, scales = "free_y")  
+    
+    ggplotly(plot)
+    
+    
+  })
+  
+  
+  output$plottrh_daily <- renderPlotly({
+
+    plot <- df_clean_daily %>%
+      filter(id==input$id_daily) %>%
+      select(-contains("id")) %>%
+      reshape2::melt(id.var = 'date')  %>%
+      ggplot(aes(x = date, y = value, group = variable)) +
+      geom_line(aes(col=variable)) +
+      theme_bw() +
+      facet_wrap(~ variable, ncol = 1, scales = "free_y")  
+    
+    return(plot)
+    
+    
+    })
+  
+  output$plot_daily_imputed <- renderPlotly({
+    
+    plot <- df_imputed %>%
+      filter(id==input$id_imputed) %>%
+      select(-contains("id")) %>%
+      reshape2::melt(id.var = 'date')  %>%
+      ggplot(aes(x = date, y = value, group = variable)) +
+      geom_line(aes(col=variable)) +
+      theme_bw() +
+      facet_wrap(~ variable, ncol = 1, scales = "free_y")  
+    
+    return(plot)
+    
+    
+  })
+
+  
+  
+  
+}
+
+
+
+
+shinyApp(ui, server)

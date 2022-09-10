@@ -1,0 +1,8 @@
+"0","df_ombro_weekly <- df_ombro %>%
+  group_by(id) %>%
+  agg.weekly.daily() %>% 
+  ungroup() 
+"
+"2","pad applied on the interval: day
+"
+"0",""

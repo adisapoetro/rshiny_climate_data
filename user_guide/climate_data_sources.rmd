@@ -1,0 +1,88 @@
+---
+title: "CCI Dashboard"
+author: "Didi Adisaputro, Climatology Section"
+date: "March 22 2022"
+output: pdf_document
+editor_options:
+  markdown:
+    wrap: 72
+---
+
+<marquee direction = "up">This text will scroll from bottom to
+up</marquee>
+
+## Secondary Climate Data
+
+As evidenced by the historic drought in Indonesia, rainfall extremes,
+vast wildfires, and soaring temperatures across the country , climate
+change is already on our doorstep, and Indonesia's oil palm producers
+are on the front lines. We are operating in new territory, and the
+changing climate creates immense uncertainty and threatens the
+resilience. This page consists of various sources that was designed to
+access secondary data and interactively visualize agroclimate-related
+data. <br>
+
+**Source 1. Fire Data.**
+
+[![](fire_index.jpg)](https://firms2.modaps.eosdis.nasa.gov/map/#d:2021-03-22..2021-03-23;@0.0,0.0,3z)
+
+<br>
+
+**Source 2. Seasonal CLimate Forecast.**
+
+[![](Seasonal_Climate%20Forecast.png)](https://iri.columbia.edu/our-expertise/climate/forecasts/seasonal-climate-forecasts/)
+
+<br>
+
+**Source 3. Climate Engine.**
+
+[![](climate_engine.png)](https://iri.columbia.edu/our-expertise/climate/forecasts/seasonal-climate-forecasts/)
+
+<br>
+
+**Source 4. SPEI Index**
+
+[![](SPEI%20Index.jpg)](https://resourcewatch.org/embed/data/explore/c0c71e67-0088-4d69-b375-85297f79ee75?hash=layers&section=Discover&zoom=4.569044503949933&lat=15.937554895103794&lng=105.91020779716385&pitch=0&bearing=0&basemap=dark&labels=light&layers=%255B%257B%2522dataset%2522%253A%2522c0c71e67-0088-4d69-b375-85297f79ee75%2522%252C%2522opacity%2522%253A1%252C%2522layer%2522%253A%25225543496a-84e0-4936-b974-d7504717b84d%2522%257D%255D&page=1&sort=most-viewed&sortDirection=-1)
+
+<br>
+
+**Source 5. Surface Water Explorer**
+
+[![](Surface_water_explorer.jpg)](https://global-surface-water.appspot.com/map#v=16.38236,108.5371,3.945,latLng&t=0.00&l=wo)
+
+<br>
+
+**Source 6. Water Stress**
+
+[![](Water%20Stress.jpg)](https://wri.org/applications/aqueduct/water-risk-atlas/#/?advanced=false&basemap=hydro&indicator=w_awr_def_tot_cat&lat=17.950863704632088&lng=106.88965022563934&mapMode=view&month=1&opacity=0.5&ponderation=DEF&predefined=false&projection=absolute&scenario=optimistic&scope=baseline&timeScale=annual&year=baseline&zoom=5)
+
+<br>
+
+**Source 7. Gadas Agricultur**
+
+[![](gadas.jpg)](https://geo.fas.usda.gov/GADAS/index.html)
+
+<br>
+
+**Source 8. CHRS Rainsphere**
+
+[![](CHRS%20Rainsphere.jpg "CHRS Rainsphere")](https://rainsphere.eng.uci.edu/)
+
+<br>
+
+**Source 9. Weather Radar**
+
+[![](Weather%20Forecast%20Radar.jpg "Weather Forecast Radar")](https://www.windy.com/)
+
+<br>
+
+**Source 10. FAO Aquamaps**
+
+[![](Aquamaps.jpg "FAO Aquamaps")](https://data.apps.fao.org/aquamaps/)
+
+## Help & feedback
+
+For additional help or to submit feedback or bug reports, please
+contact:\
+Didi Adisaputro Climatology Section
+[Sect.head.climatology\@sinarmas-agri.com](mailto:Sect.head.climatology@sinarmas-agri.com){.email}

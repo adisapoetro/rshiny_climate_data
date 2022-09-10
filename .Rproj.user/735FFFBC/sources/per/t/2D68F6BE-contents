@@ -1,0 +1,1134 @@
+# rm(list=ls())
+# rm(list = ls()[grep("write", ls())])
+# rm(df.daily.manual.1)
+
+
+########################################################################
+## Integrated AWS Data Processing (Climatology Section)
+##
+## yy.mm.ddto.date: 22.02.17 to a date
+##
+## Created by : Didi Adisaputro
+##
+## https://www.youtube.com/watch?v=VJA47oHjOnY
+########################################################################
+
+# ..............................................................................
+
+## Load Library                                                             ----
+library(climate)
+library(stringi)
+library(readbulk)
+library(anytime)
+library(readxl)
+library(janitor)
+library(zoo)
+library(tibble)
+library(reshape2)
+library(ggplot2)
+library(xlsx)
+library(tidyverse)
+library(anytime)
+library(gridExtra)
+library(data.table)
+library(lattice)
+library(hydroTSM)
+library(xts)
+library(lubridate)
+library(writexl)
+library(slider)
+library(timetk)
+library(purrr)
+library(plotly)
+library(tidyverse)
+library(tidyr)
+library(RColorBrewer)
+library(gplots)
+library(timetk)
+library(psychrolib)
+library(purrr)
+library(IDPmisc)
+library(padr)
+library(readbulk)
+library(IDPmisc)
+library(FedData)
+library(stringi)
+library(plyr)
+library(dplyr)
+library(miceRanger)
+library(magrittr)
+library(ggrepel)
+
+#  List of Function                                                         ####
+agg.daily.hourly <- function(df){
+
+
+  cols <- c(rain_mm  = NA_real_, id = NA_real_,
+            temperature_c=NA_real_, rh_percent = NA_real_, pressure_mbar =NA_real_, par_mol_m2_s=NA_real_,
+            solar_radiation_w_m2  = NA_real_, wind_speed_kmh = NA_real_,
+            temperature_c.min=NA_real_, wind_direction_degree=NA_real_,
+            vpd_pa =NA_real_)
+
+  df <- df  %>%
+    mutate(date = as.Date(date_time, format="%Y-%m-%d")) %>%
+    add_column(df, !!!cols[setdiff(names(cols), names(df))]) %>%
+    group_by(id) %>%
+    summarise_by_time(date, .by = "day", id=id,
+                      temperature_c.min= min(temperature_c, na.rm=TRUE), temperature_c.mean= mean(temperature_c, na.rm=TRUE) ,temperature_c.max= max(temperature_c, na.rm=TRUE),
+                      rh_percent.min= min(rh_percent, na.rm=TRUE), rh_percent.mean= mean(rh_percent, na.rm=TRUE), rh_percent.max= max(rh_percent, na.rm=TRUE),
+                      rain_mm.sum = sum(rain_mm),
+                      pressure_mbar.mean = mean(pressure_mbar, na.rm=TRUE),
+                      par_mol_m2_s.mean = mean(par_mol_m2_s, na.rm=TRUE),
+                      solar_radiation_w_m2.mean =  mean(solar_radiation_w_m2, na.rm=TRUE),
+                      wind_speed_kmh.mean = mean(wind_speed_kmh, na.rm=TRUE),
+                      wind_direction_degree.mean = mean(wind_direction_degree, na.rm=TRUE),
+                      vpd_pa.mean = mean(vpd_pa, na.rm=TRUE)) %>%
+    select(where(~sum(!is.na(.x)) > 0)) %>%  #delete column that contain only NA
+    mutate_all(~ifelse(is.nan(.), NA, .)) %>% #replace NAN
+    mutate_all(~ifelse(is.infinite(.), NA, .)) %>% # replace Inf
+    distinct(date, .keep_all = TRUE) %>%
+    ungroup()
+  
+}  # agregate daily from hourly AWS
+agg.monthly.daily <- function(df){
+  
+  fncols <- function(data, cname) {
+   add <-cname[!cname%in%names(data)]
+   if(length(add)!=0) data [add] <- NA
+   data
+
+  }
+
+  df<- fncols(df, c("rain_mm.sum", "id" ,
+                     "temperature_c.min", "temperature_c.mean",
+                     "temperature_c.max" , "rh_percent.min" , "rh_percent.mean" ,
+                     "rh_percent.max" , "pressure_mbar.mean" , "par_mol_m2_s.mean" ,
+                     "solar_radiation_w_m2.mean" , "wind_speed_kmh.mean", "wind_direction_degree.mean",
+                     "vpd_pa.mean" ))
+
+  df <- df  %>%
+    group_by(id) %>%
+    mutate(raindays = ifelse(rain_mm.sum > 0, 1, 0)) %>%
+    mutate(rain_mm.sum_1 = ifelse(rain_mm.sum >1, rain_mm.sum, NA)) %>% 
+    mutate(r90=ifelse(rain_mm.sum>quantile(rain_mm.sum_1,.9, na.rm = TRUE), 1,0)) %>% 
+    mutate(r10=ifelse(rain_mm.sum<quantile(rain_mm.sum_1,.1, na.rm = TRUE), 1,0)) %>% 
+    select(-rain_mm.sum_1) %>% 
+    mutate (date = as.Date(date)) %>%
+    summarise_by_time(date, .by = "month", id=id,
+                      temperature_c.min= min(temperature_c.min, na.rm=TRUE), temperature_c.mean= mean(temperature_c.mean, na.rm=TRUE) ,temperature_c.max= max(temperature_c.max, na.rm=TRUE),
+                      rh_percent.min= min(rh_percent.min, na.rm=TRUE), rh_percent.mean= mean(rh_percent.mean, na.rm=TRUE), rh_percent.max= max(rh_percent.max, na.rm=TRUE),
+                      rain_mm.sum = sum(rain_mm.sum, na.rm = TRUE),
+                      pressure_mbar.mean = mean(pressure_mbar.mean, na.rm=TRUE),
+                      par_mol_m2_s.mean = mean(par_mol_m2_s.mean, na.rm=TRUE),
+                      solar_radiation_w_m2.mean =  mean(solar_radiation_w_m2.mean, na.rm=TRUE),
+                      wind_speed_kmh.mean = mean(wind_speed_kmh.mean, na.rm=TRUE),
+                      wind_direction_degree.mean = mean(wind_direction_degree.mean, na.rm=TRUE),
+                      raindays=sum(raindays, na.rm = TRUE),
+                      r90=sum(r90, na.rm = TRUE),
+                      r10=sum(r10, na.rm = TRUE),
+                      vpd_pa.mean = mean(vpd_pa.mean, na.rm=TRUE)) %>%
+    select(where(~sum(!is.na(.x)) > 0)) %>%  #delete column that contain only NA
+    mutate_all(~ifelse(is.nan(.), NA, .)) %>% #replace NAN
+    mutate_all(~ifelse(is.infinite(.), NA, .)) %>% # replace Inf
+    distinct() %>%
+    mutate (etp = ifelse(raindays >10, 120, 150)) %>%
+    mutate(swr=200) %>%
+    mutate(wd=0)
+
+  for (i in (2:nrow(df))) {
+    df$swr[i] <- df$swr[i-1] + (df$rain_mm.sum[i]) - (df$etp[i])
+    df$swr[i][df$swr[i] > 200] <- 200
+    df$swr[i][df$swr[i] < 0] <- 0
+
+    df$wd[i] <-  (df$etp[i]) - df$swr[i-1] - (df$rain_mm.sum[i])
+    df$wd[i][df$wd[i] < 0] <- 0
+  }
+
+  df <- df %>%
+    mutate(drainage_mm= lag(swr)+rain_mm.sum-etp-200) %>%
+    dplyr::rename(wd_mm =wd, etp_mm =etp, swr_mm=swr) %>%
+    mutate(drainage_mm=replace(drainage_mm, drainage_mm<0, 0)) %>%
+    select(-etp_mm ,-swr_mm) %>% 
+    ungroup() %>% 
+    select(where(~sum(!is.na(.x)) > 0))  #delete column that contain only NA
+
+} # agregate monthly from daily  AWS
+agg.monthly.daily.ombro <- function(df){
+  df <- df  %>%
+    mutate(raindays = ifelse(rain_mm.sum > 0, 1, 0)) %>%
+    mutate(rain_mm.sum_1 = ifelse(rain_mm.sum >1, rain_mm.sum, NA)) %>% 
+    mutate(r90=ifelse(rain_mm.sum>quantile(rain_mm.sum_1,.9, na.rm = TRUE), 1,0)) %>% 
+    mutate(r10=ifelse(rain_mm.sum<quantile(rain_mm.sum_1,.1, na.rm = TRUE), 1,0)) %>% 
+    select(-rain_mm.sum_1) %>% 
+    mutate (date = as.Date(date)) %>%
+    group_by(id) %>%
+    summarise_by_time(date, .by = "month",
+                      rain_mm.sum = sum(rain_mm.sum, na.rm = TRUE),
+                      raindays=sum(raindays)) %>%
+    distinct() %>%
+    mutate (etp = ifelse(raindays >10, 120, 150)) %>%
+    mutate(swr=200) %>%
+    mutate(wd=0)
+
+  for (i in (2:nrow(df))) {
+    df$swr[i] <- df$swr[i-1] + (df$rain_mm.sum[i]) - (df$etp[i])
+    df$swr[i][df$swr[i] > 200] <- 200
+    df$swr[i][df$swr[i] < 0] <- 0
+
+    df$wd[i] <-  (df$etp[i]) - df$swr[i-1] - (df$rain_mm.sum[i])
+    df$wd[i][df$wd[i] < 0] <- 0
+  }
+
+  df <- df %>%
+    mutate(drainage_mm= lag(swr)+rain_mm.sum-etp-200) %>%
+    dplyr::rename(wd_mm =wd, etp_mm =etp, swr_mm=swr) %>%
+    mutate(drainage_mm=replace(drainage_mm, drainage_mm<0, 0))  %>%
+    select(-etp_mm ,-swr_mm) %>% 
+    ungroup()
+
+}  # agregate monthly monthly daily ombro only
+download.merged.ogimet <- function(id, .start.date, .end.date) {
+  id.deparse <- deparse(substitute(id))
+  out <- list()
+  out$ogimet_daily <- meteo_ogimet(interval = "daily", date = c(.start.date, .end.date),
+                                   station = c(id.deparse)) %>%
+    select(Date, station_ID, Precmm) %>%
+    dplyr::rename(date = Date, id = station_ID, rain_mm.sum=Precmm)
+
+  out$ogimet_hourly <- meteo_ogimet(interval = "hourly", date = c(.start.date, .end.date),
+                                    station = c(id.deparse), precip_split = FALSE) %>%
+    #mutate(date_time = paste(Date, hour)) %>%
+    #mutate(date_time =  anytime(date_time)) %>%
+    select(Date, TC, TdC, Hr, PseahPa ) %>%
+    dplyr::rename(date_time = Date, temperature_c = TC, dew_temperature = TdC, rh_percent = Hr, pressure_mbar =  PseahPa) %>%
+    distinct() %>%
+    distinct(date_time, .keep_all = TRUE) %>%
+    mutate(date_time = sapply(date_time, toString)) %>%
+    mutate(date_time =  anytime(date_time)) %>%
+    thicken('hour')  %>%
+    pad_by_time(date_time_hour, .by= 'hour') %>%
+    mutate(temperature_c = as.numeric(temperature_c),  dew_temperature = as.numeric(dew_temperature),
+           rh_percent = as.numeric(rh_percent), pressure_mbar = as.numeric(pressure_mbar)) %>%
+    select(-date_time)  %>%
+    dplyr::rename(date_time = date_time_hour) %>%
+    select (date_time, temperature_c, dew_temperature, rh_percent, pressure_mbar)
+  cols <- c(pressure_mbar = NA_real_, par_mol_m2_s= NA_real_,
+            solar_radiation_w_m2 = NA_real_, wind_speed_kmh =NA_real_, wind_direction_degree =NA_real_)
+  out$ogimet_hourly<-add_column(out$ogimet_hourly, !!!cols[setdiff(names(cols), names(out$ogimet_hourly))])
+
+  out$ogimet_hourly <- out$ogimet_hourly %>%
+    mutate(date = as.Date(date_time, format="%Y-%m-%d")) %>%
+    summarise_by_time(date, .by = "day",
+                      temperature_c.min= min(temperature_c, na.rm=TRUE), temperature_c.mean= mean(temperature_c, na.rm=TRUE) ,temperature_c.max= max(temperature_c, na.rm=TRUE),
+                      rh_percent.min= min(rh_percent, na.rm=TRUE), rh_percent.mean= mean(rh_percent, na.rm=TRUE), rh_percent.max= max(rh_percent, na.rm=TRUE),
+                      pressure_mbar.mean = mean(pressure_mbar, na.rm=TRUE),
+                      par_mol_m2_s.mean = mean(par_mol_m2_s, na.rm=TRUE),
+                      solar_radiation_w_m2.mean =  mean(solar_radiation_w_m2, na.rm=TRUE),
+                      wind_speed_kmh.mean = mean(wind_speed_kmh, na.rm=TRUE),
+                      wind_direction_degree.mean = mean(wind_direction_degree, na.rm=TRUE)) %>%
+    distinct(date, .keep_all = TRUE)
+
+  df.ogimet <- out$ogimet_daily %>%
+    pad_by_time(date) %>%
+    left_join(out$ogimet_hourly, by="date")
+
+  # return(out) # for producing list files
+  return(df.ogimet) # For producing df.ogimet merge hourly and daily
+
+} # rain_daily and other hourly
+download.ogimet <- function(id, .start.date, .end.date) {
+  id.deparse <- deparse(substitute(id))
+  out <- list()
+  out$ogimet_daily <- meteo_ogimet(interval = "daily", date = c(.start.date, .end.date),
+                                   station = c(id.deparse))
+  out$ogimet_hourly <- meteo_ogimet(interval = "hourly", date = c(.start.date, .end.date),
+                                    station = c(id.deparse), precip_split = FALSE)
+
+  return(out)
+
+
+}
+download.hourly.bmkg <- function(id, .start.date, .end.date) {
+  id.deparse <- deparse(substitute(id))
+  out <- list()
+  out$ogimet_daily <- meteo_ogimet(interval = "daily", date = c(.start.date, .end.date),
+                                   station = c(id.deparse)) %>%
+    select(Date, station_ID, Precmm) %>%
+    dplyr::rename(date = Date, id = station_ID, rain_mm.sum=Precmm)
+
+  out$ogimet_hourly <- meteo_ogimet(interval = "hourly", date = c(.start.date, .end.date),
+                                    station = c(id.deparse), precip_split = FALSE) %>%
+    #mutate(date_time = paste(Date, hour)) %>%
+    #mutate(date_time =  anytime(date_time)) %>%
+    select(Date, TC, TdC, Hr, PseahPa ) %>%
+    dplyr::rename(date_time = Date, temperature_c = TC, dew_temperature = TdC, rh_percent = Hr, pressure_mbar =  PseahPa) %>%
+    distinct() %>%
+    distinct(date_time, .keep_all = TRUE) %>%
+    mutate(date_time = sapply(date_time, toString)) %>%
+    mutate(date_time =  anytime(date_time)) %>%
+    thicken('hour')  %>%
+    pad_by_time(date_time_hour, .by= 'hour') %>%
+    mutate(temperature_c = as.numeric(temperature_c),  dew_temperature = as.numeric(dew_temperature),
+           rh_percent = as.numeric(rh_percent), pressure_mbar = as.numeric(pressure_mbar)) %>%
+    select(-date_time)  %>%
+    dplyr::rename(date_time = date_time_hour) %>%
+    select (date_time, temperature_c, dew_temperature, rh_percent, pressure_mbar)
+  cols <- c(pressure_mbar = NA_real_, par_mol_m2_s= NA_real_,
+            solar_radiation_w_m2 = NA_real_, wind_speed_kmh =NA_real_, wind_direction_degree =NA_real_)
+  out$ogimet_hourly<-add_column(out$ogimet_hourly, !!!cols[setdiff(names(cols), names(out$ogimet_hourly))])
+
+  out$ogimet_hourly <- out$ogimet_hourly %>%
+    mutate(date = as.Date(date_time, format="%Y-%m-%d")) %>%
+    summarise_by_time(date, .by = "day",
+                      temperature_c.min= min(temperature_c, na.rm=TRUE), temperature_c.mean= mean(temperature_c, na.rm=TRUE) ,temperature_c.max= max(temperature_c, na.rm=TRUE),
+                      rh_percent.min= min(rh_percent, na.rm=TRUE), rh_percent.mean= mean(rh_percent, na.rm=TRUE), rh_percent.max= max(rh_percent, na.rm=TRUE),
+                      pressure_mbar.mean = mean(pressure_mbar, na.rm=TRUE),
+                      par_mol_m2_s.mean = mean(par_mol_m2_s, na.rm=TRUE),
+                      solar_radiation_w_m2.mean =  mean(solar_radiation_w_m2, na.rm=TRUE),
+                      wind_speed_kmh.mean = mean(wind_speed_kmh, na.rm=TRUE),
+                      wind_direction_degree.mean = mean(wind_direction_degree, na.rm=TRUE)) %>%
+    distinct(date, .keep_all = TRUE)
+
+  df.ogimet <- out$ogimet_daily %>%
+    pad_by_time(date) %>%
+    left_join(out$ogimet_hourly, by="date")
+
+  # return(out) # for producing list files
+  return(df.ogimet) # For producing df.ogimet merge hourly and daily
+
+}
+merge.ogimet <- function (df.hourly, df.daily) {
+
+  #---
+  list.daily <- df.daily %>%
+    select(Date, station_ID, Precmm) %>%
+    dplyr::rename(date = Date, id = station_ID, rain_mm.sum=Precmm)
+
+  #---
+
+  list.hourly <-  df.hourly %>%
+    dplyr::select(Date, TC, TdC, Hr, PseahPa ) %>%
+    dplyr::rename(date_time = Date, temperature_c = TC, dew_temperature = TdC, rh_percent = Hr, pressure_mbar =  PseahPa) %>%
+    distinct() %>%
+    distinct(date_time, .keep_all = TRUE) %>%
+    mutate(date_time = sapply(date_time, toString)) %>%
+    mutate(date_time =  anytime(date_time)) %>%
+    thicken('hour')  %>%
+    pad_by_time(date_time_hour, .by= 'hour') %>%
+    mutate(temperature_c = as.numeric(temperature_c),  dew_temperature = as.numeric(dew_temperature),
+           rh_percent = as.numeric(rh_percent), pressure_mbar = as.numeric(pressure_mbar)) %>%
+    select(-date_time)  %>%
+    dplyr::rename(date_time = date_time_hour) %>%
+    select (date_time, temperature_c, dew_temperature, rh_percent, pressure_mbar)
+
+  cols <- c(pressure_mbar = NA_real_, par_mol_m2_s= NA_real_,
+            solar_radiation_w_m2 = NA_real_, wind_speed_kmh =NA_real_, wind_direction_degree =NA_real_)
+
+
+  list.hourly<-add_column(list.hourly, !!!cols[setdiff(names(cols), names(list.hourly))])  %>%
+    mutate(date = as.Date(date_time, format="%Y-%m-%d")) %>%
+    summarise_by_time(date, .by = "day",
+                      temperature_c.min= min(temperature_c, na.rm=TRUE), temperature_c.mean= mean(temperature_c, na.rm=TRUE) ,temperature_c.max= max(temperature_c, na.rm=TRUE),
+                      rh_percent.min= min(rh_percent, na.rm=TRUE), rh_percent.mean= mean(rh_percent, na.rm=TRUE), rh_percent.max= max(rh_percent, na.rm=TRUE),
+                      pressure_mbar.mean = mean(pressure_mbar, na.rm=TRUE),
+                      par_mol_m2_s.mean = mean(par_mol_m2_s, na.rm=TRUE),
+                      solar_radiation_w_m2.mean =  mean(solar_radiation_w_m2, na.rm=TRUE),
+                      wind_speed_kmh.mean = mean(wind_speed_kmh, na.rm=TRUE),
+                      wind_direction_degree.mean = mean(wind_direction_degree, na.rm=TRUE)) %>%
+    distinct(date, .keep_all = TRUE)
+
+  df.ogimet <- list.daily %>%
+    pad_by_time(date) %>%
+    left_join(list.hourly, by="date")
+
+  return(df.ogimet) # For producing df.ogimet merge hourly and daily
+
+} #merge hourly and daily ogimet
+plot.anomaly.daily <- function(df) {
+  df <- df %>%
+    mutate(rain_mm.sum = replace(rain_mm.sum, rain_mm.sum<5, NA)) %>%
+    reshape2::melt(id.var = c('date', 'id')) %>%
+    group_by(variable, id) %>%
+    NaRV.omit() %>%
+    plot_anomaly_diagnostics(date, value, .facet_ncol = 2,  .alpha = 0.05, .interactive = FALSE)
+} #plot anomaly daily AWS
+plot.climpact.ts.ann <- function(dir, index.name, unit) {
+  unit.deparse <- deparse(substitute(unit))
+  index.name.deparse <- deparse(substitute(index.name))
+
+  df <- read_csv(dir,skip = 6)
+
+  tes <- df[,2]
+
+  ggplot(df, aes_string(x ="time", y =index.name.deparse)) +
+    geom_area(size = 0.5, fill="red") +
+    labs(x = "Year", y = unit.deparse, title = index.name.deparse) +
+    theme_bw() +
+    theme(
+      text = element_text(size = 15),
+      plot.title = element_text(size = 20),
+      axis.title.y = element_text(size = 14L,
+                                  face = "bold"),
+      axis.title.x = element_text(size = 14L,
+                                  face = "bold")
+    )
+
+} #Plot annual climate extremes from climpact
+plot.diagram.climate <- function (df, .start_date, .end_date,  ref.year) {
+  ref.year.deparse <- deparse(substitute(ref.year))
+  
+  diagram.climate <- function (df, .start_date, .end_date, seasons, ref.year) {
+    
+    seasons.deparse <- deparse(substitute(seasons))
+    
+    seasons.deparse.case <- case_when(seasons.deparse %in% "winter" ~ "December-January-February",
+                                      seasons.deparse %in% "spring" ~ "March-April-May",
+                                      seasons.deparse %in% "summer" ~ "Juni-July-August",
+                                      seasons.deparse %in% "autumn" ~ "September-October-November")
+    
+    
+    df.daily <- df %>%
+      select (date, rain_mm.sum, temperature_c.mean ) %>%
+      dplyr::rename( ta =temperature_c.mean, pr = rain_mm.sum) %>%
+      pad_by_time(date) %>%
+      filter_by_time(date,.start_date = .start_date,.end_date = .end_date )
+    
+    
+    meteo_yr <- function(dates, start_month = NULL) {
+      # convert to POSIXlt
+      dates.posix <- as.POSIXlt(dates)
+      # year offset
+      offset <- ifelse(dates.posix$mon >= start_month - 1, 1, 0)
+      # new year
+      adj.year = dates.posix$year + 1900 + offset
+      return(adj.year)
+    }
+    
+    data <- mutate(df.daily,
+                   winter_yr = meteo_yr(date, 12),
+                   month = month(date),
+                   season = case_when(month %in% c(12,1:2) ~ "winter",
+                                      month %in% 3:5 ~ "spring",
+                                      month %in% 6:8 ~ "summer",
+                                      month %in% 9:11 ~ "autumn"))
+    
+    data_inv <-  filter(data, season == seasons.deparse) %>%
+      group_by(winter_yr) %>%
+      summarize(pr = sum(pr, na.rm = T), ta= mean(ta, na.rm = T))
+    
+    data_inv <-  mutate(data_inv, pr_mean = mean(pr[winter_yr <= ref.year]),
+                        ta_mean = mean(ta[winter_yr <= ref.year]),
+                        pr_anom = (pr*100/pr_mean)-100,
+                        ta_anom = ta-ta_mean,
+                        
+                        labyr = case_when(pr_anom < 0 & ta_anom < 0 ~ winter_yr,
+                                          pr_anom < 0 & ta_anom > 0 ~ winter_yr,
+                                          pr_anom > 0 & ta_anom < -0 ~ winter_yr,
+                                          pr_anom > 0 & ta_anom > 0 ~ winter_yr),
+                        symb_point = ifelse(!is.na(labyr), "yes", "no"),
+                        lab_font = ifelse(labyr == 2020, "bold", "plain"))
+    
+    
+    data_inv_p <- mutate(data_inv, pr_anom = pr_anom * -1)
+    
+    bglab <- data.frame(x = c(-Inf, Inf, -Inf, Inf),
+                        y = c(Inf, Inf, -Inf, -Inf),
+                        hjust = c(1, 1, 0, 0),
+                        vjust = c(1, 0, 1, 0),
+                        lab = c("Wet-Warm", "Dry-Warm",
+                                "Wet-Cold", "Dry-Cold"))
+    
+    
+    g1 <- ggplot(data_inv_p,
+                 aes(pr_anom, ta_anom)) +
+      annotate("rect", xmin = -Inf, xmax = 0, ymin = 0, ymax = Inf, fill = "#fc9272", alpha = .6) + #wet-warm
+      annotate("rect", xmin = 0, xmax = Inf, ymin = 0, ymax = Inf, fill = "#cb181d", alpha = .6) + #dry-warm
+      annotate("rect", xmin = -Inf, xmax = 0, ymin = -Inf, ymax = 0, fill = "#2171b5", alpha = .6) + #wet-cold
+      annotate("rect", xmin = 0, xmax = Inf, ymin = -Inf, ymax = 0, fill = "#c6dbef", alpha = .6) + #dry-cold
+      geom_hline(yintercept = 0,
+                 linetype = "dashed") +
+      geom_vline(xintercept = 0,
+                 linetype = "dashed") +
+      geom_text(data = bglab,
+                aes(x, y, label = lab, hjust = hjust, vjust = vjust),
+                fontface = "italic", size = 5,
+                angle = 90, colour = "white")
+    
+    g1
+    
+    
+    g2 <- g1 + geom_point(aes(fill = symb_point, colour = symb_point),
+                          size = 2.8, shape = 21, show.legend = FALSE) +
+      geom_text_repel(aes(label = labyr, fontface = lab_font),
+                      max.iter = 5000,
+                      size = 3.5)
+    g2
+    
+    captions <- paste0( "Data: Manual\nNormal period begining-", ref.year.deparse)
+    
+    g3 <- g2 + scale_x_continuous("Precipitation anomaly in %",
+                                  breaks = seq(-100, 250, 10) * -1,
+                                  labels = seq(-100, 250, 10),
+                                  limits = c(min(data_inv_p$pr_anom), 100)) +
+      scale_y_continuous("Mean temperature anomaly in ºC",
+                         breaks = seq(-2, 2, 0.5)) +
+      scale_fill_manual(values = c("black", "white")) +
+      scale_colour_manual(values = rev(c("black", "white"))) +
+      labs(title = seasons.deparse.case ,
+           caption = captions) +
+      theme_bw()
+    
+    g3
+  }
+  
+  winter <- diagram.climate (df, .start_date, .end_date, winter, ref.year)
+  spring <- diagram.climate (df, .start_date, .end_date, spring, ref.year)
+  summer <- diagram.climate (df, .start_date, .end_date, summer, ref.year)
+  autumn <- diagram.climate (df, .start_date, .end_date, autumn, ref.year)
+  
+  
+  list_plot <- return(list(summer = summer, winter = winter, autumn =autumn, spring=spring))
+  plot.climate.diagram <- gridExtra::grid.arrange(grobs = list_plot)
+  
+  return(plot.climate.diagram )
+  
+}
+plot.diagram.climate2 <- function (df, .start_date, .end_date,  ref.year, musim) {
+  ref.year.deparse <- deparse(substitute(ref.year))
+
+  diagram.climate <- function (df, .start_date, .end_date, seasons, ref.year) {
+
+    seasons.deparse <- deparse(substitute(seasons))
+
+    seasons.deparse.case <- case_when(seasons.deparse %in% "winter" ~ "December-January-February",
+                                      seasons.deparse %in% "spring" ~ "March-April-May",
+                                      seasons.deparse %in% "summer" ~ "Juni-July-August",
+                                      seasons.deparse %in% "autumn" ~ "September-October-November")
+
+
+    df.daily <- df %>%
+      select (date, rain_mm.sum, temperature_c.mean ) %>%
+      dplyr::rename( ta =temperature_c.mean, pr = rain_mm.sum) %>%
+      pad_by_time(date) %>%
+      filter_by_time(date,.start_date = .start_date,.end_date = .end_date )
+
+
+    meteo_yr <- function(dates, start_month = NULL) {
+      # convert to POSIXlt
+      dates.posix <- as.POSIXlt(dates)
+      # year offset
+      offset <- ifelse(dates.posix$mon >= start_month - 1, 1, 0)
+      # new year
+      adj.year = dates.posix$year + 1900 + offset
+      return(adj.year)
+    }
+
+    data <- mutate(df.daily,
+                   winter_yr = meteo_yr(date, 12),
+                   month = month(date),
+                   season = case_when(month %in% c(12,1:2) ~ "winter",
+                                      month %in% 3:5 ~ "spring",
+                                      month %in% 6:8 ~ "summer",
+                                      month %in% 9:11 ~ "autumn"))
+
+    data_inv <-  filter(data, season == seasons.deparse) %>%
+      group_by(winter_yr) %>%
+      summarize(pr = sum(pr, na.rm = T), ta= mean(ta, na.rm = T))
+
+    data_inv <-  mutate(data_inv, pr_mean = mean(pr[winter_yr <= ref.year]),
+                        ta_mean = mean(ta[winter_yr <= ref.year]),
+                        pr_anom = (pr*100/pr_mean)-100,
+                        ta_anom = ta-ta_mean,
+
+                        labyr = case_when(pr_anom < 0 & ta_anom < 0 ~ winter_yr,
+                                          pr_anom < 0 & ta_anom > 0 ~ winter_yr,
+                                          pr_anom > 0 & ta_anom < -0 ~ winter_yr,
+                                          pr_anom > 0 & ta_anom > 0 ~ winter_yr),
+                        symb_point = ifelse(!is.na(labyr), "yes", "no"),
+                        lab_font = ifelse(labyr == 2020, "bold", "plain"))
+
+
+    data_inv_p <- mutate(data_inv, pr_anom = pr_anom * -1)
+
+    bglab <- data.frame(x = c(-Inf, Inf, -Inf, Inf),
+                        y = c(Inf, Inf, -Inf, -Inf),
+                        hjust = c(1, 1, 0, 0),
+                        vjust = c(1, 0, 1, 0),
+                        lab = c("Wet-Warm", "Dry-Warm",
+                                "Wet-Cold", "Dry-Cold"))
+
+
+    g1 <- ggplot(data_inv_p,
+                 aes(pr_anom, ta_anom)) +
+      annotate("rect", xmin = -Inf, xmax = 0, ymin = 0, ymax = Inf, fill = "#fc9272", alpha = .6) + #wet-warm
+      annotate("rect", xmin = 0, xmax = Inf, ymin = 0, ymax = Inf, fill = "#cb181d", alpha = .6) + #dry-warm
+      annotate("rect", xmin = -Inf, xmax = 0, ymin = -Inf, ymax = 0, fill = "#2171b5", alpha = .6) + #wet-cold
+      annotate("rect", xmin = 0, xmax = Inf, ymin = -Inf, ymax = 0, fill = "#c6dbef", alpha = .6) + #dry-cold
+      geom_hline(yintercept = 0,
+                 linetype = "dashed") +
+      geom_vline(xintercept = 0,
+                 linetype = "dashed") +
+      geom_text(data = bglab,
+                aes(x, y, label = lab, hjust = hjust, vjust = vjust),
+                fontface = "italic", size = 5,
+                angle = 90, colour = "white")
+
+    g1
+
+
+    g2 <- g1 + geom_point(aes(fill = symb_point, colour = symb_point),
+                          size = 2.8, shape = 21, show.legend = FALSE) +
+      geom_text_repel(aes(label = labyr, fontface = lab_font),
+                      max.iter = 5000,
+                      size = 3.5)
+    g2
+
+    captions <- paste0( "Data: Manual\nNormal period begining-", ref.year.deparse)
+
+    g3 <- g2 + scale_x_continuous("Precipitation anomaly in %",
+                                  breaks = seq(-100, 250, 10) * -1,
+                                  labels = seq(-100, 250, 10),
+                                  limits = c(min(data_inv_p$pr_anom), 100)) +
+      scale_y_continuous("Mean temperature anomaly in ºC",
+                         breaks = seq(-2, 2, 0.5)) +
+      scale_fill_manual(values = c("black", "white")) +
+      scale_colour_manual(values = rev(c("black", "white"))) +
+      labs(title = seasons.deparse.case ,
+           caption = captions) +
+      theme_bw()
+
+    g3
+  }
+
+  musim <- diagram.climate (df, .start_date, .end_date, musim, ref.year)
+
+  return(musim)
+
+}
+plot.facet <- function(df) {
+  df %>%
+    select(-contains("id")) %>%
+    reshape2::melt(id.var = 'date')  %>%
+    ggplot(aes(x = date, y = value, group = variable)) +
+    geom_line(aes(col=variable)) +
+    theme_bw() +
+    facet_wrap(~ variable, ncol = 2, scales = "free_y")
+} # facet plot function
+plot.facet.ombro <- function(df) {
+  ggplot(df) +
+    aes(x = date,y = rain_mm.sum, fill = id,colour = id,group = id) +
+    geom_line(size = 0.5) +
+    scale_fill_brewer(palette = "Set1", direction = 1) +
+    scale_color_brewer(palette = "Set1", direction = 1) +
+    theme_bw() +
+    facet_wrap(vars(id))
+}
+plot.hist <- function(var) {
+  var1<-paste0 (var,"_hmg")
+  var2<-paste0(var)
+
+  df.daily.hom.merged  %>%
+    left_join(df_daily_smse, by="date") %>%
+    select(date, var1, var2) %>%
+    reshape2::melt(id.var = 'date')  %>%
+    gghistogram(x = "value",
+                add = "mean", rug = TRUE,
+                fill = "variable",
+                palette = c(rgb(1,0,0,0.5), rgb(0,0,1,0.5)),
+                add_density = TRUE)
+} # hisplot homogenization
+plot.hydro.ombro <- function (id) {
+
+  df <- df %>%
+    filter(id=="ADPE-Division 2" ) %>%
+    dplyr::rename (x=rain_mm.sum ) %>%
+    select(date,x) %>%
+    mutate(x=as.numeric(x))
+  df <-  xts(x = df$x, order.by =  df$date)
+
+  hydroplot(df , var.type="Precipitation", main="()",
+            pfreq = "dm")
+
+
+} # id = "ADPE-Division 2"
+qc.hourly.range <- function(df) {
+  cols <- c(rain_mm  = NA_real_, id = NA_real_,
+            temperature_c=NA_real_, rh_percent = NA_real_, pressure_mbar =NA_real_, par_mol_m2_s=NA_real_,
+            solar_radiation_w_m2  = NA_real_, wind_speed_kmh = NA_real_,
+            temperature_c.min=NA_real_, wind_direction_degree=NA_real_,
+            vpd_pa =NA_real_)
+
+
+  df <- add_column(df, !!!cols[setdiff(names(cols), names(df))])
+  
+    
+    df <- df %>% 
+    mutate(temperature_c = replace(temperature_c,temperature_c>40, NA)) %>%
+    mutate(temperature_c = replace(temperature_c,temperature_c<5, NA)) %>%
+    mutate(pressure_mbar = replace(pressure_mbar, pressure_mbar>1500, NA))  %>%
+    mutate(pressure_mbar = replace(pressure_mbar, pressure_mbar<800, NA))  %>%
+    mutate(rain_mm = replace(rain_mm, rain_mm<0, NA)) %>%
+    mutate(rain_mm = replace(rain_mm, rain_mm>1500, NA))  %>%
+    mutate(rh_percent = replace(rh_percent, rh_percent<25, NA))  %>%
+    mutate(rh_percent = replace(rh_percent, rh_percent>150, NA))  %>%
+    mutate(wind_speed_kmh = replace(wind_speed_kmh, wind_speed_kmh>30, NA))  %>%
+    mutate(par_mol_m2_s = replace(par_mol_m2_s, par_mol_m2_s>10, NA))  %>%
+    filter(!is.na(date_time)) %>%
+    arrange(date_time) %>%
+    distinct() %>% 
+    select(where(~sum(!is.na(.x)) > 0)) 
+    
+} # qc hourlydata
+qc.hourly.stl <-  function(df) {
+  df <- df %>%
+    reshape2::melt(id.var = c('date_time', 'id'), na.rm =TRUE ) %>%
+    group_by(variable, id) %>%
+    NaRV.omit() %>%
+    tk_anomaly_diagnostics(date_time, value, .frequency = "auto",
+                           .trend = "auto", .alpha = 0.05)  %>%
+    mutate(anomaly = replace(anomaly, anomaly== "Yes", 2)) %>%
+    mutate(anomaly = replace(anomaly, anomaly== "No", 1))  %>%
+    select(date_time,id,observed,anomaly)  %>%
+    mutate(anomaly=replace(anomaly, variable=="rain_mm.sum", 1))  %>%
+    mutate(observed=replace(observed, anomaly==2, NA)) %>%
+    select(-anomaly) %>%
+    group_by(variable,id) %>%
+    distinct(date_time, .keep_all = TRUE) %>%
+    ungroup() %>%
+    spread(variable, observed)
+}
+qc.daily <- function(df) {
+  df <- df %>%
+    reshape2::melt(id.var = c('date', 'id'), na.rm =TRUE ) %>%
+    group_by(variable, id) %>%
+    NaRV.omit() %>%
+    tk_anomaly_diagnostics(date, value, .frequency = "auto",
+                           .trend = "auto", .alpha = 0.05)  %>%
+    mutate(anomaly = replace(anomaly, anomaly== "Yes", 2)) %>%
+    mutate(anomaly = replace(anomaly, anomaly== "No", 1))  %>%
+    select(date,id,observed,anomaly)  %>%
+    mutate(anomaly=replace(anomaly, variable=="rain_mm.sum", 1))  %>%
+    mutate(observed=replace(observed, anomaly==2, NA)) %>%
+    select(-anomaly) %>%
+    group_by(variable,id) %>%
+    distinct(date, .keep_all = TRUE) %>%
+    ungroup() %>%
+    spread(variable, observed)
+} # qc daily data
+read.data <- function(file)  {
+  dat <- read.table(file,header=TRUE,sep="\t")
+  dat$fname <- file
+  dat$fname <- stri_sub(dat$fname,-19,-5)
+  return(dat)
+} # read data
+read.campbell <- function() {
+files <- list.files(path = "D://Climate Data/05 Campbell/Campbell Libz/for r", pattern = "*.txt", full.names = TRUE, recursive=TRUE)
+## Bind the excel
+df.list <- lapply(files, function(x)read.table(x, header=T, sep="\t"))
+
+## Function for changing type of data into integer and Posixt
+ChangeType <- function(df.list){
+  df.list[,1] <- as.character(unlist(df.list[,1]))
+  df.list[,2] <- as.character(unlist(df.list[,2]))
+  df.list[,9] <- as.numeric(unlist(df.list[,9]))
+  df.list #return the data.frame
+}
+
+## Apply Function and bind the rows of the dfs together
+df.list <- lapply(df.list, ChangeType)
+df <- bind_rows(df.list, .id = "id")
+
+## date and time handling
+df$Time <-mdy_hm(df$Time)
+
+## add stasiun ID
+df<- df %>%
+  add_column(id = 'libz01cbl00113')
+
+# Add column if variable does not exist
+cols <- c(PAR= NA_real_, Pressure= NA_real_, UV= NA_real_ )
+df<-add_column(df, !!!cols[setdiff(names(cols), names(df))])
+
+df<- as.tibble(data.frame(df$Time, df$Tair_Avg, df$Pressure, df$Rain_Tot, df$RH,
+                          df$PAR, df$Rg_Avg, df$UV, df$Wind_speed_WVc.1., df$Wind_speed_WVc.2., df$id))
+colnames(df) <- c("date_time", "temperature_c", "pressure_kpa", "rain_mm", "rh_percent",
+                  "par_mol_m2_s", "solar_radiation_w_m2", "uv",
+                  "wind_speed_kmh", "wind_direction_degree", "id")
+
+# Add column if variable does not exist
+#cols <- c(solar_radiation_w_m2.mean = NA_real_, par_mol_m2_s.mean = NA_real_ )
+#df<-add_column(df, !!!cols[setdiff(names(cols), names(df))])
+
+# Convert units
+df<- df %>%
+  mutate(pressure_mbar=pressure_kpa*10)
+} # read Campbell
+read.cimel <- function(name.station) {
+  read.data <- function(file)  {
+    dat <- read.table(file,header=TRUE,sep="\t")
+    dat$fname <- file
+    dat$fname <- stri_sub(dat$fname,-19,-5)
+    return(dat)
+  } # read data
+
+  name.station.deparse <- deparse(substitute(name.station))
+  pth <- paste0("D://Climate Data/01 CIMEL/",name.station.deparse,"/for r")
+  list<-lapply(list.files(path =pth,
+                          pattern = "*.txt", full.names = TRUE, recursive=TRUE),read.data)
+
+  # list to store all data.frames
+
+  df.hourly <-rbind.fill (list, .id = "id") %>%
+    add_column(x='.00') %>%
+    mutate(Hour = paste(Hour, x, sep = "")) %>%
+    mutate(date_time = paste(Date, Hour, sep = " ")) %>%
+    select(-x) %>%
+    mutate(date_time = dmy_hm(date_time)) %>%
+    relocate(date_time)
+  cols <- c(RR = NA_real_, PR = NA_real_, pressure_mbar = NA_real_,
+            uv=NA_real_, wind_direction_degree=NA_real_ )
+  df.hourly <- add_column(df.hourly, !!!cols[setdiff(names(cols), names(df.hourly))])  %>%
+    mutate_if(is.character,as.numeric) %>%
+    add_column(id = name.station.deparse) %>%
+    dplyr::select(date_time, id, T,  pressure_mbar, RR, U,
+                  PR, RG, VT, `wind_direction_degree`) %>%
+    dplyr::rename(temperature_c=T, rain_mm = RR, rh_percent = U, par_mol_m2_s = PR,
+                  solar_radiation_w_m2 =RG, wind_speed_kmh = VT)
+
+  return(df.hourly)
+} # Read cimel hourly data only
+read.davis <- function (id) {
+
+  id.deparse <- deparse(substitute(id))
+
+  input <- paste0("D://Climate Data/07 DAVIS/Davis ", id.deparse,"/for r")
+
+  files <- list.files(path = input, pattern = "*.txt", full.names = TRUE, recursive=TRUE)
+
+  ## Function for changing type of data into integer and Posixt
+  df.list <- lapply(files, function(x)read.table(x, header=T, sep="\t"))
+
+  ChangeType <- function(df.list){
+    df.list[,2] <- as.character(unlist(df.list[,2]))
+    df.list #return the data.frame
+  }
+  ## Apply Function and bind the rows of the dfs together
+  df.list <- lapply(df.list, ChangeType)
+  df <- bind_rows(df.list, .id = "id")
+
+  df<-df[!grepl("Out", df$Temp),]  # remove second
+
+  # Change the stasiun name to date and time
+  colnames(df)[2] <- "date"
+  df$date <- dmy(df$date)
+  colnames(df)[3] <- "time"
+  df$time <- as.character(df$time)
+  df$time <- gsub("\\.", ":", df$time)
+  df$date_time<-as.POSIXct(paste(df$date, df$time), format="%Y-%m-%d %H:%M")
+
+  ## add stasiun ID
+  df<- df %>% add_column(stasiun = 'bame', vendor='cimel', sid='bame030603c001')
+
+  ## Add column if variable does not exist
+  cols <- c(Rain = NA_real_, PR = NA_real_, Out = NA_real_,
+            uv=NA_real_, Wind...9=NA_real_, In.Air=NA_real_)
+  df<-add_column(df, !!!cols[setdiff(names(cols), names(df))])
+
+  # Output file
+  df <- df %>%
+    dplyr::select(date_time, Temp, In.Air, X.3, Out,
+                  PR,Solar, UV, Wind, Wind.2)
+
+  colnames(df) <- c("date_time", "temperature_c", "pressure_bar", "rain_mm", "rh_percent",
+                    "par_mol_m2_s", "solar_radiation_w_m2", "uv",
+                    "wind_speed_kmh", "wind_dir_degree")
+
+  #Convert to numeric
+  df$temperature_c <- as.numeric(df$temperature_c)
+  df$pressure_bar <- as.numeric(df$pressure_bar)
+  df$rain_mm <- as.numeric(df$rain_mm)
+  df$rh_percent<- as.numeric(df$rh_percent)
+  df$par_mol_m2_s <- as.numeric(df$par_mol_m2_s)
+  df$solar_radiation_w_m2 <- as.numeric(df$solar_radiation_w_m2)
+  df$uv <- as.numeric(df$uv)
+  df$wind_speed_kmh <- as.numeric(df$wind_speed_kmh)
+  df$wind_dir_degree<- as.numeric(df$wind_dir_degree)
+
+
+  # Convert units
+  df<- df %>%
+    mutate(pressure_mbar=pressure_bar*1000)
+
+}
+read.manual <- function(name.station) {
+  name.station.deparse <- deparse(substitute(name.station))
+
+  pth <- paste0("00 Station Cuaca Smartri/for r/",name.station.deparse,".xlsx")
+
+  df<- read_excel(pth,
+                  col_types = c("date", "numeric", "numeric",
+                                "numeric", "numeric", "numeric",
+                                "numeric", "numeric", "numeric",
+                                "numeric", "numeric", "numeric",
+                                "numeric", "numeric", "numeric",
+                                "numeric", "numeric"))
+  df<- df  %>%
+    mutate(rh_percent.mean = (`RH_evening_%`+`RH_morning_%`+`RH_afternoon_%`)/3) %>%
+    mutate(rh_percent.min = pmin(`RH_evening_%`, `RH_morning_%`,`RH_afternoon_%`))  %>%
+    mutate(rh_percent.max = pmax(`RH_evening_%`, `RH_morning_%`,`RH_afternoon_%`)) %>%
+    distinct()  %>%
+    pad_by_time(date, .by = "day")  %>%
+    mutate(temperature_max_c = replace(temperature_max_c,temperature_max_c>60, NA)) %>%
+    mutate(temperature_max_c = replace(temperature_max_c,temperature_max_c<10, NA)) %>%
+    mutate(sunshine.duration_hour = replace(sunshine.duration_hour,sunshine.duration_hour>12, NA))  %>%
+    mutate(radiation_cal.cm2.h = replace(radiation_cal.cm2.h,radiation_cal.cm2.h>700, NA))   %>%
+    mutate(radiation_cal.cm2.h = replace(radiation_cal.cm2.h,radiation_cal.cm2.h<0, NA))   %>%
+    mutate(solar_radiation_w_m2.mean = (radiation_cal.cm2.h*11.6300000008))
+
+  ## Add column if variable does not exist
+  cols <- c(solar_radiation_w_m2.mean = NA_real_, par_mol_m2_s.mean = NA_real_, id=NA_real_, pressure_mbar.mean=NA_real_,
+            wind_direction_degree.mean = NA_real_)
+  df<-add_column(df, !!!cols[setdiff(names(cols), names(df))])
+
+  df.daily <- df  %>%
+    setnames(old = c('temperature_mean_c', 'temperature_max_c','temperature_min_c', 'rain_mm', 'wind.speed_km.h' ),
+             new = c('temperature_c.mean', 'temperature_c.max','temperature_c.min', 'rain_mm.sum', 'wind_speed_kmh.mean'))  %>%
+    select(date, id, temperature_c.mean, temperature_c.max, temperature_c.min,
+           rh_percent.mean, rh_percent.min, rh_percent.max, wind_speed_kmh.mean,
+           pressure_mbar.mean,rain_mm.sum,  par_mol_m2_s.mean, solar_radiation_w_m2.mean, wind_direction_degree.mean )
+
+  df.daily$id <- 'LIBZ_MANUAL'
+
+  df.daily.libz.manual <- df.daily
+
+  return(df.daily.libz.manual)
+
+} # read manual station from excel file
+read.ombro.all <- function () {
+  files <- list.files(path = "D://Climate Data/02 SAP/for r", pattern = ".xls*", full.names = TRUE, recursive=TRUE)
+
+  ##### Data Cleaning   -----------------  9
+  df.list <- lapply(files, read_excel) # read excel into a list of dfs
+
+  clean.cols <- function(df.list) {
+
+    df.list <- df.list %>%
+      select(1:6) %>%
+      mutate_all(as.character)
+
+  }
+
+
+  df.list <- lapply(df.list, clean.cols)
+  df <- bind_rows(df.list, .id = "id") %>%
+    distinct()  %>%
+    select(id, Date, Estate, Position_Record, Rainfall) %>%
+    mutate(Rainfall= as.numeric(Rainfall))  %>%
+    unite("id", Estate:Position_Record, sep= "-",
+          remove = TRUE) %>%
+    mutate(Rainfall = replace(Rainfall, Rainfall>1000, NA)) %>%
+    mutate(Rainfall = replace(Rainfall, Rainfall<0, NA)) %>%
+    dplyr::rename(rain_mm.sum = Rainfall, date =Date) %>%
+    distinct() %>%
+    mutate(date = as.Date(date, origin="1899-12-30"))%>%
+    group_by(id) %>%
+    distinct(date, .keep_all= TRUE) %>%
+    ungroup() %>%
+    relocate(date)
+
+
+}
+read.ombro.partial <- function (estate) {
+
+  estate.deparse <-  deparse(substitute(estate))
+  estate.deparse <- paste0(estate.deparse, "*")
+
+
+  files <- list.files(path = "D://Climate Data/02 SAP/for r", pattern = estate.deparse, full.names = TRUE, recursive=TRUE)
+
+  ##### Data Cleaning   -----------------  9
+  df.list <- lapply(files, read_excel) # read excel into a list of dfs
+
+  df <-rbind.fill (df.list, .id = "id")
+
+  df <- df %>%
+    distinct() %>%
+    unite("id", Estate:Position_Record, sep= "-",
+          remove = TRUE) %>%
+    select(-Year) %>%
+    mutate(Rainfall = as.numeric(Rainfall)) %>%
+    mutate(Rainfall = replace(Rainfall, Rainfall>1000, NA)) %>%
+    mutate(Rainfall = replace(Rainfall, Rainfall<0, NA)) %>%
+    dplyr::rename(rain_mm.sum = Rainfall, date =Date) %>%
+    distinct() %>%
+    mutate(date = as.Date(date, origin="1899-12-30"))%>%
+    group_by(id) %>%
+    distinct(date, .keep_all= TRUE) %>%
+    ungroup() %>%
+    relocate(date)  %>%
+    select(-Rainday) %>%
+    select(where(~sum(!is.na(.x)) > 0))
+
+} # Read SAP Ombro read only the targeted estate
+read.rhtests <- function(file, var) {
+  name.var.deparse <- deparse(substitute(var))
+  name.file.deparse <- deparse(substitute(file))
+  input <-paste0 ("D://Climate Data/Output r/output/",name.file.deparse,".dat" )
+
+  var <- read_table2(input, col_names = FALSE) %>%
+    mutate(X2 = ymd(X2)) %>%
+    dplyr::rename(date="X2") %>%
+    select(date,  X5 ) %>%
+    dplyr::na_if(-99.9) %>%
+    dplyr::rename({{var}} := X5 )
+
+
+} # read the results from rhtests
+read.rhtests.base <- function(file, var) {
+  name.var.deparse <- deparse(substitute(var))
+  name.file.deparse <- deparse(substitute(file))
+  input <-paste0 ("D://Climate Data/Output r/output/",name.file.deparse,".dat" )
+
+  var <- read_table2(input, col_names = FALSE) %>%
+    mutate(X2 = ymd(X2)) %>%
+    dplyr::rename(date="X2") %>%
+    select(date,  X3 ) %>%
+    dplyr::na_if(-99.9) %>%
+    dplyr::rename({{var}} := X3 )
+
+
+} # read the results from rhtests from base
+write.climdex <- function(name.df, id, .start_date, .end_date) {
+  name.df.deparse <- deparse(substitute(name.df))
+  id.deparse <- deparse(substitute(id))
+
+  out<-paste0 ("D://Climate Data/output r\\",name.df.deparse,"_",id.deparse,".txt" )
+
+  tes <- name.df%>%
+    NaRV.omit() %>%
+    pad_by_time(date, .start_date = .start_date, .end_date = .end_date) %>%
+    mutate(year=year(date), month=month(date), day=day(date)) %>%
+    replace(is.na(.), -99.9) %>%
+    select(year, month, day, rain_mm.sum, temperature_c.max, temperature_c.min)
+
+  write.table(tes, file =out, row.names = FALSE,
+              col.names = FALSE  ,sep="\t" )
+
+  return(tes)
+} #input for climdex
+write.climdex.rh <- function(name.df, id, .start_date, .end_date) {
+  name.df.deparse <- deparse(substitute(name.df))
+  id.deparse <- deparse(substitute(id))
+
+  out<-paste0 ("D://Climate Data/output r\\",name.df.deparse,"_",id.deparse,".txt" )
+
+  tes <- name.df%>%
+    NaRV.omit() %>%
+    pad_by_time(date, .start_date = .start_date, .end_date = .end_date) %>%
+    mutate(year=year(date), month=month(date), day=day(date)) %>%
+    replace(is.na(.), -99.9) %>%
+    select(year, month, day, rain_mm.sum, rh_percent.max, rh_percent.min)
+
+  write.table(tes, file =out, row.names = FALSE,
+              col.names = FALSE  ,sep="\t" )
+
+  return(tes)
+} #input for climdex
+write.climdex2 <- function(name.df, .start_date, .end_date) {
+  name.df.deparse <- deparse(substitute(name.df))
+  id.deparse <- deparse(substitute(id))
+
+  out<-paste0 ("D://Climate Data/output r\\",name.df.deparse,".txt" )
+
+  tes <- name.df%>%
+    NaRV.omit() %>%
+    pad_by_time(date, .start_date = .start_date, .end_date = .end_date) %>%
+    mutate(year=year(date), month=month(date), day=day(date)) %>%
+    replace(is.na(.), -99.9) %>%
+    select(year, month, day, rain_mm.sum, temperature_c.max, temperature_c.min)
+
+  write.table(tes, file =out, row.names = FALSE,
+              col.names = FALSE  ,sep="\t" )
+
+  return(tes)
+} #input for climdex
+write.rhtests <- function(name.df, var, id) {
+  name.id.deparse <- deparse(substitute(id))
+  name.df.deparse <- deparse(substitute(name.df))
+  name.var.deparse <- deparse(substitute(var))
+  name.var.deparse <- gsub("\\.", "_", name.var.deparse)
+  out<-paste0 ("D://Climate Data/output r\\",name.df.deparse,"_",name.var.deparse,"_",name.id.deparse,".dat" )
+  tes <- name.df%>%
+    select(date,{{var}}) %>%
+    NaRV.omit() %>%
+    pad_by_time(date) %>%
+    mutate(year=year(date), month=month(date), day=day(date)) %>%
+    replace(is.na(.), -99.9) %>%
+    select(year, month, day, {{var}})
+
+  write.table(tes, file =out, row.names = FALSE,
+              col.names = FALSE  ,sep="\t" )
+
+  return(tes)
+} # input for rhtets
+write.rhtests.bulk <- function(df, id) {
+  name.id.deparse <- deparse(substitute(id))
+
+  write.rhtests <- function(name.df, var, id) {
+
+    name.var.deparse <- deparse(substitute(var))
+    name.var.deparse <- gsub("\\.", "_", name.var.deparse)
+    out<-paste0 ( "D://Climate Data/output r\\",name.var.deparse,"_",name.id.deparse,".dat" )
+    tes <- name.df%>%
+      select(date,{{var}}) %>%
+      NaRV.omit() %>%
+      pad_by_time(date) %>%
+      mutate(year=year(date), month=month(date), day=day(date)) %>%
+      replace(is.na(.), -99.9) %>%
+      select(year, month, day, {{var}})
+
+    write.table(tes, file =out, row.names = FALSE,
+                col.names = FALSE  ,sep="\t" )
+
+    return(tes)
+  } # input for rhtets
+
+
+  write.rhtests(df, temperature_c.min, id )
+  write.rhtests(df, temperature_c.mean, id )
+  write.rhtests(df, temperature_c.max, id)
+  write.rhtests(df, rh_percent.min, name.id)
+  write.rhtests(df, rh_percent.mean, name.id)
+  write.rhtests(df, rh_percent.max, name.id)
+} # input for rhtets in bulk
+write_xlsx_id <- function(df, id.estate.deparse) {
+  output <- paste0("D://Climate Data/output r\\",id.estate.deparse ,".xlsx")
+
+  df %>%
+    filter(id==id.estate.deparse) %>%
+    write_xlsx(output)
+} # export xlsxx for ombro
+write_xlsx_nonid <- function(df, output.name) {
+
+
+  output.name.deparse <- deparse(substitute(output.name))
+  output <- paste0("D://Climate Data/output r\\",output.name.deparse,".xlsx")
+
+  df %>%
+    write_xlsx(output)
+}
+
+
+# Sample ->  plot.climpact.ts.ann("www/output/df.daily.libz.homogenized.imputed_climpact/indices/df.daily.libz.homogenized.imputed_climpact_tn90p_ANN.csv",tn90p, Percent)
+
+#  .. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+
+
+
+
+
+
+
+
+########################################################################

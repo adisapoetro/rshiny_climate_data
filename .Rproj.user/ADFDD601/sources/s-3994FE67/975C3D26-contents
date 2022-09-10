@@ -1,0 +1,95 @@
+library(plotly)
+library(data.table)
+
+# variable required df_aws, df_meteostat, df_ombro_aws, Filtered_df_monthly, filtered_df_weekly, sts, sts_bmkg, sts_clim1005, sts_clim1005_map, sts_ombro
+
+# Iframe dataframe from weatherlink-----------------------------------------------
+
+iframe_weatherlink <- data.frame(name=c("KNDE", "LIBZ"), link=c('https://www.weatherlink.com/embeddablePage/show/51781eab510c4403b9fcd70e124f1c46/slim',
+                                                                'https://www.weatherlink.com/embeddablePage/show/b9c1517bef0e4e08bda6d3dafeb29852/slim'))
+
+# General Data -----------------------------------------------------------------
+ #df_meteostat <- read.meteostat()
+ df_meteostat <- read.meteostat.hourly() %>% 
+   agg.daily.hourly()
+ df_ombro <- read.ombro.all() %>% 
+   mutate(estate = substr(id,1,4))
+ df_manual <- read.manual.gsheet()
+ 
+# AWS Data --------------------------------------------
+ list_aws <-  read.daily.all.aws ()
+ list_aws <- discard(list_aws, ~all(is.na(.x))) 
+ list_aws_1 <- list_aws
+ list_aws_2 <- map(list_aws, ~filter(.x, id =="LIBE01DVS02418"))
+ #list_aws_2 <- discard(list_aws_2, ~all(is.na(.x)))
+ 
+ list_aws <- lapply(list_aws, possibly(qc.daily, NA)) # Rainfall Imputations  
+ list_aws <- lapply(list_aws, possibly(impute.aws.rain.rf, NA)) # Rainfall Imputations using Random Forest
+ list_aws <- lapply(list_aws, possibly(impute.aws.allvars.xgb, NA)) # Allvars Imputations using Random Forest
+ 
+ df_aws <- list_aws %>% 
+   discard(~all(is.na(.x))) %>% 
+   rbindlist(fill=TRUE) 
+
+# Combining AWS and Ombro-------------------------------------------
+
+df_aws_rain <- df_aws %>% 
+  select(date, id, rain_mm.sum) %>% 
+  left_join(sts_clim1005, by="id") %>%
+  mutate(estate=id) 
+   
+df_ombro <- df_ombro %>% 
+  mutate(estate = substr(id,1,4))
+
+df_ombro_aws <- df_aws_rain %>% 
+  bind_rows(df_ombro) %>% 
+  as.data.frame() %>% 
+  left_join(sts_ombro, by="estate") %>% 
+  mutate(region = coalesce(region.x, region.y)) %>%
+  select(-region.x, -region.y)
+  
+ df_aws %>% 
+  filter(id=="BMLE01DVS00309") %>% 
+  plot.facet()
+   
+# Dashboard-ready data by estate-------------------------------------------
+df_ombro_monthly <- df_ombro_aws%>%
+  group_by(id, region, estate) %>% 
+  agg.monthly.daily() 
+
+df_ombro_weekly <- df_ombro_aws %>%
+  group_by(id, region, estate) %>% 
+  agg.weekly.daily()
+
+filtered_df_monthly<- df_ombro_monthly %>% 
+  mutate(month=month(date, label = TRUE)) %>%
+  #mutate(estate = substr(id,1,4)) %>%  # estate using AWS
+  #na.omit(estate) %>% 
+  group_by(estate,date) %>%
+  select(-id) %>% 
+  summarise(region =region, rain_mm.sum = mean(rain_mm.sum, na.rm=TRUE)) %>% 
+  mutate(year= as.numeric(year(date))) %>% 
+  mutate(month=lubridate::month(date, label = TRUE)) %>% 
+  mutate(month = as.factor(month)) %>%
+  ungroup()
+
+filtered_df_weekly <- df_ombro_weekly %>%
+  na.omit(estate) %>% 
+  group_by(estate,date) %>%
+  select(-id) %>% 
+  summarise(region =region, rain_mm.sum = mean(rain_mm.sum, na.rm=TRUE)) %>% 
+  mutate(week=week(date)) %>% 
+  mutate(month=month(date)) %>% 
+  mutate(year= as.character(year(date))) %>% 
+  ungroup()
+
+filtered_df_daily <- df_ombro_aws %>%
+  mutate(week=week(date)) %>% 
+  mutate(month=month(date)) %>% 
+  mutate(year= as.character(year(date))) %>% 
+  ungroup()
+
+df_ombro_aws <- df_ombro_aws %>% 
+  dplyr::select(date, id, estate, rain_mm.sum)
+
+#rm(df_ombro)

@@ -1,0 +1,26 @@
+{
+    "id": "975C3D26",
+    "path": "C:/Users/DidiA/Google Drive/SMARTRI/R_Dashboard/CCI_Lite/general_9.R",
+    "project_path": "general_9.R",
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1658817208320.0,
+    "source_on_save": false,
+    "relative_order": 2,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "95,0",
+        "scrollLine": "0"
+    },
+    "folds": "5|35|9|0|\n10|15|17|1|\n18|11|32|0|\n33|25|53|3|\n54|32|95|0|\n",
+    "lastKnownWriteTime": 1658820041,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1658820041484,
+    "read_only": false,
+    "read_only_alternatives": []
+}

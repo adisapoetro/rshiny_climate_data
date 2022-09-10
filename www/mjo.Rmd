@@ -1,0 +1,10 @@
+---
+title: "MJO"
+output: html_document
+date: '2022-06-29'
+---
+
+
+## The Madden--Julian Oscillation (MJO) 
+
+The Madden--Julian Oscillation (MJO) is the major fluctuation in tropical weather on weekly to monthly timescales. It can be characterised as an eastward moving 'pulse' of cloud and rainfall near the equator that typically recurs every 30 to 60 days.
