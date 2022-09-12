@@ -14,7 +14,7 @@ Note :
 3. Please be cautious that such features may or may not end up in the final release, or they may also change according to the feedback.
 
 ## Figure 1. Spatial Distribution of BMKG Station
-![tet2](https://user-images.githubusercontent.com/95113684/189469108-0f0fa878-89ad-49f0-b16a-d3245f9aeeb6.jpg)
+![tet2](https://user-images.githubusercontent.com/95113684/189555596-b3ddd93f-d4b2-4657-bf8b-cd8984b33c17.jpg)
 
 ## Figure 2. Data Visualization
 ![tet1](https://user-images.githubusercontent.com/95113684/189469111-4ff3f5fc-cc45-48fb-9327-6e31a2a71641.jpg)
